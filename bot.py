@@ -21,7 +21,7 @@ irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 irc.connect ( ( network, port ) )
 print irc.recv ( 4096 )
 irc.send ( 'NICK ' + botname + '\r\n' )
-irc.send ( 'USER botty botty botty :Python IRC\r\n' )
+irc.send ( 'USER lsb lsb lsb :Python IRC BOT\r\n' )
 while True:
    data = irc.recv ( 4096 )
    if data.find ( 'PING' ) != -1:
@@ -38,9 +38,10 @@ while True:
    ##############JOIN COMMANDS##########################################
    if data.find ( 'End of /MOTD command' ) != -1:
       irc.send ( 'JOIN '+ channel +'\r\n' )
+      irc.send ( 'JOIN '+ adminchannel +'\r\n' )
 
    ##############WHOIS COMMANDS##########################################
-   if data.find ('bot whoami') != -1:
+   if data.find ('lsb whoami') != -1:
       name = data.split('!')
       name = name[0].lstrip('[\':')
       irc.send ( 'WHOIS ' + name + '\r\n' )
@@ -72,7 +73,7 @@ while True:
       	irc.send ( 'PRIVMSG '+ channel +' :Most people tend to agree that I do infact rock!\r\n' )
 
    ##############JOIN VOICE##########################################
-   if data.find ('JOIN') != -1:
+   if data.find ('JOIN ' + channel) != -1:
 	name = data.split('!')
 	name = name[0].lstrip('[\':')
 	if name in offenders_list != -1:
@@ -108,9 +109,10 @@ while True:
 						voicerem = 'MODE '+ channel +' -v '+ name + '\r\n'
 						irc.send (voicerem)
 			break
+			
    ##############CLEAR PERSON##########################################
-   if data.find ('!bot clear') != -1:
-	command = data.split('!bot clear ')
+   if data.find ('!lsb clear') != -1:
+	command = data.split('!lsb clear ')
 	try:
 		offender = str(command[1])
 		offender = offender.rstrip('\r\n')
@@ -148,7 +150,7 @@ while True:
 			
    ##############ADD COMMAND##########################################
    if data.find ('PRIVMSG ' + str(adminchannel)) != -1:
-   	if data.find('!bot add') != -1:
+   	if data.find('!lsb add') != -1:
    		values = data.split('!')
    		values = values[2]
    		values = values.split(' ')
@@ -161,14 +163,53 @@ while True:
    					desc += x
    					desc += ' '
    			commands[values[2]] = desc
+   			reply = 'PRIVMSG '+ adminchannel +' :done\r\n'
+			irc.send (reply)
    			print commands
    		else:
    			name = data.split('!')
 			name = name[0].lstrip('[\':')
-   			reply = 'PRIVMSG '+ channel +' :' + name + ' That command already exists\r\n'
+   			reply = 'PRIVMSG '+ adminchannel +' :' + name + ' That command already exists\r\n'
 			irc.send (reply)
 			print commands
 	
+   ##############EDIT COMMAND##########################################
+   if data.find ('PRIVMSG ' + str(adminchannel)) != -1:
+   	if data.find('!lsb set') != -1:
+   		values = data.split('!')
+   		values = values[2]
+   		values = values.split(' ')
+   		desc = ""
+   		pos = 0
+   		if values[2] in commands:
+   			for x in values:
+   				pos += 1
+   				if pos > 3:
+   					desc += x
+   					desc += ' '
+   			commands[values[2]] = desc
+   			reply = 'PRIVMSG '+ adminchannel +' :done\r\n'
+			irc.send (reply)
+   			print commands
+   		else:
+   			reply = 'PRIVMSG '+ adminchannel +' :' + name + values[2] + ' command not found\r\n'
+			irc.send (reply)
+			
+   ##############DELETE COMMAND##########################################
+   if data.find ('PRIVMSG ' + str(adminchannel)) != -1:
+   	if data.find('!lsb delete') != -1:
+   		values = data.split('!')
+   		values = values[2]
+   		values = values.split(' ')
+   		if values[2].rstrip('\r\n') in commands:
+   			del commands[values[2].rstrip('\r\n')]
+   			reply = 'PRIVMSG '+ adminchannel +' :done\r\n'
+			irc.send (reply)
+   			print commands
+   		else:
+   			reply = 'PRIVMSG '+ adminchannel +' :' + name + values[2] + ' command not found\r\n'
+			irc.send (reply)
+   
    ##############SHOW COMMAND##########################################
    if data.find ('PRIVMSG ' + str(channel)) != -1:
 	   if data.find('!') !=1:
