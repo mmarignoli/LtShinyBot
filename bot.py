@@ -6,9 +6,6 @@ whinewords = ['op', 'up', 'imba', 'imbalanced', '>', 'bullshit', 'balanced']
 mods = ['LtShinySidesFL', 'FLDodo', 'DefacedFL', 'HanaSarangFL', 'mcrwvr']
 offenders_list = {}
 commands = {}
-command_in_progress = 0
-command_user = ""
-command_name = ""
 
 
 network = 'irc.quakenet.org'
