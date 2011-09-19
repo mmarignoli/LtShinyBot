@@ -2,15 +2,16 @@ import socket
 import string
  
 keywords = ['protoss', 'terran', 'zerg', 'toss', 'mules', 'marines', 'rines', 'mmm', '4gate', '1-1-1', '111', 'infestors', 'imbafestors']
-whinewords = ['op', 'up', 'imba', 'imbalanced', '>', 'bullshit', 'balanced']
+whinewords = ['op', 'up', 'imba', 'imbalanced', 'bullshit', 'balanced']
 mods = ['FLDodo', 'LtShinySidesFL', 'DefacedFL', 'HanaSarangFL', 'mcrwvr']
+ban_words = [] 
 offenders_list = {}
 commands = {}
 
 
 network = 'irc.quakenet.org'
 port = 6667
-botname= 'LtShinyBott'
+botname= 'LtShinyBot'
 channel = '#pybottest'
 adminchannel = '#pybottest'
 channel_checker = 'PRIVMSG ' + str(channel)
@@ -23,6 +24,20 @@ while True:
    data = irc.recv ( 4096 )
    if data.find ( 'PING' ) != -1:
       irc.send ( 'PONG ' + data.split() [ 1 ] + '\r\n' )
+      
+   ##############BANNED WORDS##########################################
+   if data.find ('PRIVMSG ' + str(channel)) != -1:
+   	name = data.split('!')
+   	name = name[0].lstrip('[\':')
+   	print "in banned words"
+   	mess = data.split('PRIVMSG ' + str(channel) + ' :')
+   	print mess
+   	words = mess[1].split(' ')
+   	print words
+   	for x in words:
+   		if x.rstrip('\r\n') in ban_words:
+   			print x
+   			irc.send ( 'KICK '+ channel + ' ' + name +' :No racism\r\n' )
 
    ##############HELLO BOT##########################################
    if data.find ( 'hi ' + botname + '' ) != -1:
