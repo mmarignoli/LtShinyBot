@@ -29,15 +29,12 @@ while True:
    if data.find ('PRIVMSG ' + str(channel)) != -1:
    	name = data.split('!')
    	name = name[0].lstrip('[\':')
-   	print "in banned words"
    	mess = data.split('PRIVMSG ' + str(channel) + ' :')
-   	print mess
    	words = mess[1].split(' ')
-   	print words
    	for x in words:
-   		if x.rstrip('\r\n') in ban_words:
-   			print x
-   			irc.send ( 'KICK '+ channel + ' ' + name +' :No racism\r\n' )
+   		for y in ban_words:
+	   		if x.find(y) != -1:
+	   			irc.send ( 'KICK '+ channel + ' ' + name +' :No racism\r\n' )
 
    ##############HELLO BOT##########################################
    if data.find ( 'hi ' + botname + '' ) != -1:
@@ -51,6 +48,7 @@ while True:
    if data.find ( 'End of /MOTD command' ) != -1:
       irc.send ( 'JOIN '+ channel +'\r\n' )
       irc.send ( 'JOIN '+ adminchannel +'\r\n' )
+      irc.send ( 'PRIVMSG ' + channel +' :BOT IS HERE\r\n' )
 
    ##############WHOIS COMMANDS##########################################
    if data.find ('lsb whoami') != -1:
@@ -98,13 +96,17 @@ while True:
 
    ##############QQ BOT##########################################
    if data.find ('PRIVMSG ' + str(channel)) != -1:
-	   for x in keywords:
-		if data.find(x) != -1:
-			for y in whinewords:
-				if data.find(y) != -1:
-					name = data.split('!')
-					name = str(name[0].lstrip('[\':'))
-					if name in offenders_list != -1:
+   	name = data.split('!')
+   	name = name[0].lstrip('[\':')
+   	mess = data.split('PRIVMSG ' + str(channel) + ' :')
+   	words = mess[1].split(' ')
+   	for x in words:
+   		if x.rstrip('\r\n') in keywords:
+   			print "found keyword"
+   			for y in words:
+   				if y.rstrip('\r\n') in whinewords:
+   					print "found whineword"
+   					if name in offenders_list != -1:
 						offenders_list[name] = offenders_list[name] + 1
 					else:
 						offenders_list[name] = 1
