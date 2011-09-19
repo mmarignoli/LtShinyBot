@@ -3,14 +3,14 @@ import string
  
 keywords = ['protoss', 'terran', 'zerg', 'toss', 'mules', 'marines', 'rines', 'mmm', '4gate', '1-1-1', '111', 'infestors', 'imbafestors']
 whinewords = ['op', 'up', 'imba', 'imbalanced', '>', 'bullshit', 'balanced']
-mods = ['LtShinySidesFL', 'FLDodo', 'DefacedFL', 'HanaSarangFL', 'mcrwvr']
+mods = ['FLDodo', 'LtShinySidesFL', 'DefacedFL', 'HanaSarangFL', 'mcrwvr']
 offenders_list = {}
 commands = {}
 
 
 network = 'irc.quakenet.org'
 port = 6667
-botname= 'LtShinyBot'
+botname= 'LtShinyBott'
 channel = '#pybottest'
 adminchannel = '#pybottest'
 channel_checker = 'PRIVMSG ' + str(channel)
@@ -129,21 +129,19 @@ while True:
 	  name = name + str(data[pos])
 	  pos = pos - 1
 	result = name[::-1]
-	for x in mods:
-		if result == x:
-			if offender in offenders_list:
-				offenders_list[offender] = 0
-				voicegief = 'MODE '+ channel +' +v '+ offender + '\r\n'
-				irc.send(voicegief)
-				reply = 'PRIVMSG '+ channel +' :' + offender + ' have been cleared!!\r\n'
-				irc.send (reply)
-			else:
-				reply = 'PRIVMSG '+ channel +' :Can\'t find that user\r\n'
-				irc.send (reply)
-			break
-		else:
-			reply = 'PRIVMSG '+ channel +' :' + name + ' you are not a mod\r\n'
+	if result in mods:
+		if offender in offenders_list:
+			offenders_list[offender] = 0
+			voicegief = 'MODE '+ channel +' +v '+ offender + '\r\n'
+			irc.send(voicegief)
+			reply = 'PRIVMSG '+ channel +' :' + offender + ' have been cleared!!\r\n'
 			irc.send (reply)
+		else:
+			reply = 'PRIVMSG '+ channel +' :Can\'t find that user\r\n'
+			irc.send (reply)
+	else:
+		reply = 'PRIVMSG '+ channel +' :' + result + ' you are not a mod\r\n'
+		irc.send (reply)
 			
    ##############ADD COMMAND##########################################
    if data.find ('PRIVMSG ' + str(adminchannel)) != -1:
