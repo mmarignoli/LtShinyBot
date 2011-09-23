@@ -3,6 +3,10 @@ import threading
 import datetime
 import socket
 import functions
+import time
+
+#global variables
+repeat_buffer = {}
 
 #setting up IRC stream
 irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
@@ -18,13 +22,11 @@ def send_to_channel(name,message):
 
 #message checker takes 4 arguments: username, ip, channel name and message
 def message_read(name,ip,chan_name,message):
-    print "message_read function"
     words = message.split()
     if words[0][0] == '!':
         if words[0] == '!lsb':
             print "triggered lsb"
         else:
-            print "cought ! char"
             func = words[0].lstrip('!')
             response = "Unknown command"
             try:
@@ -35,7 +37,22 @@ def message_read(name,ip,chan_name,message):
     message_low_nopunc = message.lower().translate(None, '.,;:\'^!?><')
     words = message_low_nopunc.split()
     print words
-        
+
+#Checks if a user is spamming the same message takes 3 argument: name, message and channel name
+def repeat_protection(name,message,chan_name,timest):
+    if name in repeat_buffer:
+        if repeat_buffer[name][0] == message:
+            num = repeat_buffer[name][2] + 1
+            repeat_buffer[name] = [message,repeat_buffer[name][1], num]
+            if repeat_buffer[name][1]+30 > timest and repeat_buffer[name][2] > 3:
+                send_to_channel(chan_name,name + ' stop repeating')
+        else:
+            temp_buffer = [message, timest, 1]
+            repeat_buffer[name] = temp_buffer
+    else:
+        temp_buffer = [message, timest, 1]
+        repeat_buffer[name] = temp_buffer
+    
 class ircThread(threading.Thread):
     def run(self):
         print irc.recv(4096)
@@ -51,7 +68,7 @@ class ircThread(threading.Thread):
                 join_channel(channel)
             #when a channel is joined bot can greet here
             if data.find( 'End of /NAMES list') != -1:
-                #data.lstrip(':')
+                data.lstrip(':')
                 lines = data.rstrip('\r\n').split('\r\n')
                 chan = lines[len(lines)-1].split()[3]
                 send_to_channel(chan,'BOT IS HERE')  
@@ -63,6 +80,7 @@ class ircThread(threading.Thread):
                 chan_name = data.lstrip(':').split('!~')[1].split(':')[0].split()[2]
                 message = data.lstrip(':').split(chan_name + ' :')[1].rstrip('\r\n').lstrip(' ')
                 message_read(name,ip,chan_name,message)
+                repeat_protection(name,message,chan_name,time.time())
             print data
 i = ircThread()
 i.start()
