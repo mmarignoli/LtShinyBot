@@ -11,3 +11,7 @@ server = ''
 password = ''
 username = ''
 db_name = ''
+
+#quakenet settings
+q_username = ''
+q_password = ''
