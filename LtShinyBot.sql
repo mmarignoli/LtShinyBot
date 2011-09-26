@@ -23,10 +23,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `ban_name`
+-- Table structure for table `ban_words`
 --
 
-CREATE TABLE IF NOT EXISTS `ban_name` (
+CREATE TABLE IF NOT EXISTS `ban_words` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `word` text NOT NULL,
   PRIMARY KEY (`ID`)
