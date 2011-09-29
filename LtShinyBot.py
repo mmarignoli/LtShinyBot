@@ -6,6 +6,7 @@ import functions
 import time
 import MySQLdb
 import dbm
+import os
 
 #global variables
 repeat_buffer = {}
@@ -15,6 +16,7 @@ ban_words = []
 mods = []
 voice_list = dbm.open('voice', 'c')
 user_list = dbm.open('users', 'c')
+logging = 0
 
 #setting up IRC stream
 irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
@@ -167,57 +169,97 @@ def banned_words(name,chan_name,words):
         for y in ban_words:
             if x.find(y) != -1:
                 kick_user(name,chan_name,'No racism')
-
+#starts logging, takes 2 parameters name of the file and channel
+def start_log(filename,chan_name):
+    global filehandle
+    global logging
+    global logged_channel
+    if logging == 0:
+        logging = 1
+        logged_channel = chan_name
+        filehandle = open(filename, 'w',0)
+        send_to_channel(chan_name,'Started logging')
+    else:
+        print sent_to_channel(chan_name,'Already logging')
+#adds to the log, takes 3 parameters username, channel name, and message
+def add_to_log(name,chan_name,message):
+    global filehandle
+    global logged_channel
+    if chan_name == logged_channel:
+        filehandle.write('<'+name+'> '+ message + '\n')
+#stops the logging takes 1 parameter, channel name
+def stop_log(chan_name):
+    global filehandle
+    global logging
+    global logged_channel
+    if logged_channel == chan_name:
+        logging = 0
+        filehandle.close()
+        send_to_channel(chan_name,"Stopped Logging")
 #message checker takes 4 arguments: username, ip, channel name and message
 def message_read(name,ip,chan_name,message):
     words = message.split()
     if words[0][0] == '!':
         if words[0] == '!lsb':
-            if words[1] == 'update':
-                if words[2] == 'keywords':
-                    update_keywords()
-                    send_to_channel(chan_name,'Keywords updated')
-                elif words[2] == 'whinewords':
-                    update_whinewords()
-                    send_to_channel(chan_name,'Whinewords updated')
-                elif words[2] == 'mods':
-                    update_mods()
-                    send_to_channel(chan_name,'Mods updated')
-                elif words[2] == 'banwords':
-                    update_banwords()
-                    send_to_channel(chan_name,'Banwords updated')
-            elif words[1] == 'mute':
-                if is_mod(name):
-                    try:
-                        mute_user(words[2],ip,chan_name)
-                    except IndexError:
-                        send_to_channel(chan_name,'No nickname specified')
-                else:
-                    send_to_channel(chan_name,'You are not a mod')
-            elif words[1] == 'clear':
-                if is_mod(name):
-                    try:
-                        clear_user(words[2],ip,chan_name)
-                    except IndexError:
-                        send_to_channel(chan_name,'No nickname specified')
-                else:
-                    send_to_channel(chan_name,'You are not a mod')
-            elif words[1] == 'time':
-                send_to_channel(chan_name,'Coming soon :D')
-            elif words[1] == 'quit':
-                if is_mod(name):
-                    irc.close()
-                    quit()
-                else:
-                    send_to_channel(chan_name,'You wish')
+            try:
+                if words[1] == 'update':
+                    if words[2] == 'keywords':
+                        update_keywords()
+                        send_to_channel(chan_name,'Keywords updated')
+                    elif words[2] == 'whinewords':
+                        update_whinewords()
+                        send_to_channel(chan_name,'Whinewords updated')
+                    elif words[2] == 'mods':
+                        update_mods()
+                        send_to_channel(chan_name,'Mods updated')
+                    elif words[2] == 'banwords':
+                        update_banwords()
+                        send_to_channel(chan_name,'Banwords updated')
+                elif words[1] == 'mute':
+                    if is_mod(name):
+                        try:
+                            mute_user(words[2],user_list[words[2]],chan_name)
+                        except (IndexError, KeyError):
+                            send_to_channel(chan_name,'No nickname specified')
+                    else:
+                        send_to_channel(chan_name,'You are not a mod')
+                elif words[1] == 'clear':
+                    if is_mod(name):
+                        try:
+                            clear_user(words[2],user_list[words[2]],chan_name)
+                        except (IndexError, KeyError):
+                            send_to_channel(chan_name,'No nickname specified')
+                    else:
+                        send_to_channel(chan_name,'You are not a mod')
+                elif words[1] == 'time':
+                    send_to_channel(chan_name,'Coming soon :D')
+                elif words[1] == 'log':
+                    if words[2] == 'start':
+                        try:
+                            start_log(words[3],chan_name)
+                        except IndexError:
+                            send_to_channel(chan_name,'Specify a filename')
+                    elif words[2] == 'stop':
+                        stop_log(chan_name)
+                elif words[1] == 'quit':
+                    if is_mod(name):
+                        irc.close()
+                        quit()
+                    else:
+                        send_to_channel(chan_name,'You wish')
+            except IndexError:
+                send_to_channel(chan_name,'What?')
         else:
             func = words[0].lstrip('!')
-            response = "Unknown command"
+            response = ""
             try:
                response = getattr(functions, func)()
             except AttributeError:
                 pass
-            send_to_channel(chan_name,response)
+            if response == "":
+                pass
+            else:
+                send_to_channel(chan_name,response)
     else:
         words = message.lower().translate(None, '.,;:\'^!?><').split()
         whine_bot(name,ip,chan_name,words)
@@ -271,12 +313,17 @@ class ircThread(threading.Thread):
         update_mods()
         while True:
             data = irc.recv(4096)
+            global logging
             print data
             #PONG reponse to PING
             if data.find('PING') != -1:
                 irc.send('PONG ' + data.split()[1] + '\r\n')
             #when /end of MOTD is recognised the bot will join channels
             if data.find ( 'End of /MOTD command' ) != -1:
+                #auth_q(q_username,q_password)
+                join_channel(channel)
+            if data.find ( 'End of MOTD command' ) != -1:
+                #auth_q(q_username,q_password)
                 join_channel(channel)
             #when a channel is joined bot can greet here
             if data.find( 'End of /NAMES list') != -1:
@@ -284,7 +331,6 @@ class ircThread(threading.Thread):
                 lines = data.rstrip('\r\n').split('\r\n')
                 chan = lines[len(lines)-1].split()[3]
                 send_to_channel(chan,'BOT IS HERE')
-                #auth_q(q_username,q_password)
             #gives voice to user that joins
             if data.find('JOIN ' + channel) != -1:
                 global user_list
@@ -292,10 +338,12 @@ class ircThread(threading.Thread):
                 ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
                 give_voice(name,ip,channel)
                 user_list[name] = ip
+            #checks if a user has been given voice, and if that user is muted it will remove it
             if data.find('MODE ' + channel + ' +v') != -1:
                 global user_list
                 global voice_list
                 name = data.split(channel + ' +v')[1].lstrip(' ').rstrip('\r\n')
+                ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
                 if name in user_list:
                     if str(user_list[name]) in voice_list:
                         if int(voice_list[user_list[name]]) >= 3:
@@ -305,6 +353,8 @@ class ircThread(threading.Thread):
                 ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
                 chan_name = data.lstrip(':').split('PRIVMSG ')[1].split()[0]
                 message = data.lstrip(':').split(chan_name + ' :')[1].rstrip('\r\n').lstrip(' ')
+                if logging == 1:
+                    add_to_log(name,chan_name,message)
                 message_read(name,ip,chan_name,message)
                 repeat_protection(name,message,chan_name,time.time())
 i = ircThread()
