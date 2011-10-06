@@ -7,6 +7,7 @@ import time
 import MySQLdb
 import dbm
 import os
+import random
 
 #global variables
 repeat_buffer = {}
@@ -23,10 +24,9 @@ irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 irc.connect ( ( network, port ) )
 #add joke to database
 def add_joke(joke):
-	global mods
 	conn = MySQLdb.connect (host = db_server,user = db_username,passwd = db_password,db = db_name)
 	cursor = conn.cursor ()
-	cursor.execute ("INSERT INTO joke('ID', 'joke')VALUES(NULL, '"+joke+"')")
+	cursor.execute ("INSERT INTO joke(ID, joke)VALUES(NULL, %s)",(joke))
 	cursor.close()
 	conn.close()
 #pulls all the mods authname from the database
@@ -207,7 +207,21 @@ def stop_log(chan_name):
 #change bot nick
 def change_nick(nick):
 	irc.send ( 'NICK ' + nick + '\r\n' )
-	
+
+#random joke
+def random_joke(chan_name):
+	conn = MySQLdb.connect (host = db_server,user = db_username,passwd = db_password,db = db_name)
+	cursor = conn.cursor ()
+	cursor.execute ("SELECT joke FROM joke")
+	numrows = int(cursor.rowcount)
+	jokes = {}
+	for i in range(numrows):
+		row = cursor.fetchone()
+		jokes[i] = row[0]
+	ran = random.randint(0, (numrows -1))
+	send_to_channel(chan_name, str(jokes[ran]))
+	cursor.close()
+	conn.close()
 #message checker takes 4 arguments: username, ip, channel name and message
 def message_read(name,ip,chan_name,message):
 	words = message.split()
@@ -254,6 +268,16 @@ def message_read(name,ip,chan_name,message):
 								send_to_channel(chan_name,'Specify a filename')
 						elif words[2] == 'stop':
 							stop_log(chan_name)
+					elif words[1] == 'add':
+						try:
+							if words[2] == 'joke':
+								add_joke(message.lstrip('!lsb add joke '))
+							else:
+								pass
+						except IndexError:
+							send_to_channel(chan_name,'Add what?')
+					elif words[1] == 'joke':
+						random_joke(chan_name)
 					elif words[1] == 'nick':
 						try:
 							if is_mod(name):
