@@ -21,7 +21,14 @@ logging = 0
 #setting up IRC stream
 irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 irc.connect ( ( network, port ) )
-
+#add joke to database
+def add_joke(joke):
+	global mods
+	conn = MySQLdb.connect (host = db_server,user = db_username,passwd = db_password,db = db_name)
+	cursor = conn.cursor ()
+	cursor.execute ("INSERT INTO joke('ID', 'joke')VALUES(NULL, '"+joke+"')")
+	cursor.close()
+	conn.close()
 #pulls all the mods authname from the database
 def update_mods():
     global mods
@@ -196,74 +203,90 @@ def stop_log(chan_name):
         logging = 0
         filehandle.close()
         send_to_channel(chan_name,"Stopped Logging")
+        
+#change bot nick
+def change_nick(nick):
+	irc.send ( 'NICK ' + nick + '\r\n' )
+	
 #message checker takes 4 arguments: username, ip, channel name and message
 def message_read(name,ip,chan_name,message):
-    words = message.split()
-    if words[0][0] == '!':
-        if words[0] == '!lsb':
-            try:
-                if words[1] == 'update':
-                    if words[2] == 'keywords':
-                        update_keywords()
-                        send_to_channel(chan_name,'Keywords updated')
-                    elif words[2] == 'whinewords':
-                        update_whinewords()
-                        send_to_channel(chan_name,'Whinewords updated')
-                    elif words[2] == 'mods':
-                        update_mods()
-                        send_to_channel(chan_name,'Mods updated')
-                    elif words[2] == 'banwords':
-                        update_banwords()
-                        send_to_channel(chan_name,'Banwords updated')
-                elif words[1] == 'mute':
-                    if is_mod(name):
-                        try:
-                            mute_user(words[2],user_list[words[2]],chan_name)
-                        except (IndexError, KeyError):
-                            send_to_channel(chan_name,'No nickname specified')
-                    else:
-                        send_to_channel(chan_name,'You are not a mod')
-                elif words[1] == 'clear':
-                    if is_mod(name):
-                        try:
-                            clear_user(words[2],user_list[words[2]],chan_name)
-                        except (IndexError, KeyError):
-                            send_to_channel(chan_name,'No nickname specified')
-                    else:
-                        send_to_channel(chan_name,'You are not a mod')
-                elif words[1] == 'time':
-                    send_to_channel(chan_name,'Coming soon :D')
-                elif words[1] == 'log':
-                    if words[2] == 'start':
-                        try:
-                            start_log(words[3],chan_name)
-                        except IndexError:
-                            send_to_channel(chan_name,'Specify a filename')
-                    elif words[2] == 'stop':
-                        stop_log(chan_name)
-                elif words[1] == 'quit':
-                    if is_mod(name):
-                        irc.close()
-                        quit()
-                    else:
-                        send_to_channel(chan_name,'You wish')
-            except IndexError:
-                send_to_channel(chan_name,'What?')
-        else:
-            func = words[0].lstrip('!')
-            response = ""
-            try:
-               response = getattr(functions, func)()
-            except AttributeError:
-                pass
-            if response == "":
-                pass
-            else:
-                send_to_channel(chan_name,response)
-    else:
-        words = message.lower().translate(None, '.,;:\'^!?><').split()
-        whine_bot(name,ip,chan_name,words)
-        banned_words(name,chan_name,words)
+	words = message.split()
+	try:
+		if words[0][0] == '!':
+			if words[0] == '!lsb':
+				try:
+					if words[1] == 'update':
+						if words[2] == 'keywords':
+							update_keywords()
+							send_to_channel(chan_name,'Keywords updated')
+						elif words[2] == 'whinewords':
+							update_whinewords()
+							send_to_channel(chan_name,'Whinewords updated')
+						elif words[2] == 'mods':
+							update_mods()
+							send_to_channel(chan_name,'Mods updated')
+						elif words[2] == 'banwords':
+							update_banwords()
+							send_to_channel(chan_name,'Banwords updated')
+					elif words[1] == 'mute':
+						if is_mod(name):
+							try:
+								mute_user(words[2],user_list[words[2]],chan_name)
+							except (IndexError, KeyError):
+								send_to_channel(chan_name,'No nickname specified')
+						else:
+							send_to_channel(chan_name,'You are not a mod')
+					elif words[1] == 'clear':
+						if is_mod(name):
+							try:
+								clear_user(words[2],user_list[words[2]],chan_name)
+							except (IndexError, KeyError):
+								send_to_channel(chan_name,'No nickname specified')
+						else:
+							send_to_channel(chan_name,'You are not a mod')
+					elif words[1] == 'time':
+						send_to_channel(chan_name,'Coming soon :D')
+					elif words[1] == 'log':
+						if words[2] == 'start':
+							try:
+								start_log(words[3],chan_name)
+							except IndexError:
+								send_to_channel(chan_name,'Specify a filename')
+						elif words[2] == 'stop':
+							stop_log(chan_name)
+					elif words[1] == 'nick':
+						try:
+							if is_mod(name):
+								change_nick(words[2])
+							else:
+								send_to_channel(chan_name,'No can do')
+						except IndexError:
+							send_to_channel(chan_name,'Specify a name')
+					elif words[1] == 'quit':
+						if is_mod(name):
+							irc.close()
+							quit()
+						else:
+							send_to_channel(chan_name,'You wish')
+				except IndexError:
+					send_to_channel(chan_name,'What?')
+			else:
+				func = words[0].lstrip('!')
+				response = ""
+				try:
+				   response = getattr(functions, func)()
+				except AttributeError:
+					pass
+				if response == "":
+					pass
+				else:
+					send_to_channel(chan_name,response)
+		else:
+			words = message.lower().translate(None, '.,;:\'^!?><').split()
+			whine_bot(name,ip,chan_name,words)
+			banned_words(name,chan_name,words)
+	except IndexError:
+		pass
 
 #Gives voice to user, also checks if the user has been removed voice
 def give_voice(name,ip,chan_name):
@@ -320,7 +343,7 @@ class ircThread(threading.Thread):
                 irc.send('PONG ' + data.split()[1] + '\r\n')
             #when /end of MOTD is recognised the bot will join channels
             if data.find ( 'End of /MOTD command' ) != -1:
-                #auth_q(q_username,q_password)
+                auth_q(q_username,q_password)
                 join_channel(channel)
             if data.find ( 'End of MOTD command' ) != -1:
                 #auth_q(q_username,q_password)
