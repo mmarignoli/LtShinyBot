@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Sep 26, 2011 at 08:51 AM
+-- Generation Time: Oct 08, 2011 at 05:13 PM
 -- Server version: 5.1.54
 -- PHP Version: 5.3.5-1ubuntu7.2
 
@@ -35,6 +35,18 @@ CREATE TABLE IF NOT EXISTS `ban_words` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `joke`
+--
+
+CREATE TABLE IF NOT EXISTS `joke` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
+  `joke` text NOT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=13 ;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `keywords`
 --
 
@@ -55,6 +67,20 @@ CREATE TABLE IF NOT EXISTS `mods` (
   `name` text NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=6 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
+  `name` text NOT NULL,
+  `ip` text NOT NULL,
+  `strikes` int(11) NOT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=8 ;
 
 -- --------------------------------------------------------
 
