@@ -3,6 +3,7 @@ import threading
 import datetime
 import socket
 import functions
+from functions import *
 from db_functions import *
 import time
 import MySQLdb
@@ -20,24 +21,23 @@ logging = 0
 #setting up IRC stream
 irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
 irc.connect ( ( network, port ) )
+irc_file = irc.makefile("rb")
 
 #checks if the user is mod
 def is_mod(name):
     global mods
     irc.send('WHOIS ' + name + '\r\n')
-    data = irc.recv (4096)
-    print data
-    pos = data.find(' :is authed as')
-    pos = pos - 1
-    name = ""
-    while data[pos] != ' ':
-        name = name + str(data[pos])
-        pos = pos - 1
-    result = name[::-1]
-    if result in mods:
-        return True
-    else:
-        return False
+    data = irc_file.readline()
+    parse_data = parsemsg(data)
+    to_return = False
+    while parse_data[1] != '318':
+		data = irc_file.readline()
+		parse_data = parsemsg(data)
+		if parse_data[1] == '330':
+			if parse_data[2][2] in mods:
+				to_return = True
+		print data
+    return to_return
     
 #join channel function takes 1 parameter: name of the channel
 def join_channel(chan_name):
@@ -192,6 +192,20 @@ def message_read(name,ip,chan_name,message):
 								send_to_channel(chan_name,'Specify a filename')
 						elif words[2] == 'stop':
 							stop_log(chan_name)
+					elif words[1] == 'set':
+						if is_mod(name):
+							try:
+								if words[2] != '':
+									if (set_message(message.split('!lsb set ')[1])):
+										send_to_channel(chan_name,'Done')
+									else:
+										pass
+								else:
+									pass
+							except IndexError:
+								pass
+						else:
+							send_to_channel(chan_name,'No can do')
 					elif words[1] == 'add':
 						try:
 							if words[2] == 'joke':
@@ -212,12 +226,12 @@ def message_read(name,ip,chan_name,message):
 							send_to_channel(chan_name,'Specify a name')
 					elif words[1] == 'quit':
 						if is_mod(name):
+							irc.send('QUIT :I will be back, oh yes, you just wait and see\r\n')
 							irc.close()
 							quit()
 						else:
 							send_to_channel(chan_name,'You wish')
 				except IndexError:
-					is_mod(name)
 					send_to_channel(chan_name,'What?')
 			else:
 				func = words[0].lstrip('!')
@@ -255,6 +269,24 @@ def repeat_protection(name,message,chan_name,timest):
     else:
         temp_buffer = [message, timest, 1]
         repeat_buffer[name] = temp_buffer
+        
+def parsemsg(s):
+    """Breaks a message from an IRC server into its prefix, command, and arguments.
+    """
+    prefix = ''
+    trailing = []
+    if not s:
+       raise IRCBadMessage("Empty line.")
+    if s[0] == ':':
+        prefix, s = s[1:].split(' ', 1)
+    if s.find(' :') != -1:
+        s, trailing = s.split(' :', 1)
+        args = s.split()
+        args.append(trailing)
+    else:
+        args = s.split()
+    command = args.pop(0)
+    return prefix, command, args
     
 class ircThread(threading.Thread):
     def run(self):
@@ -267,53 +299,47 @@ class ircThread(threading.Thread):
         ban_words = update_banwords()
         mods = update_mods()
         while True:
-            data = irc.recv(4096)
-            global logging
+            data = irc_file.readline()
             print data
+            parsed_data = parsemsg(data)
+            if parsed_data[1] == 'PRIVMSG':
+				global logging
+				name = parsed_data[0].split('!')[0]
+				ip = parsed_data[0].split('@')[1]
+				if parsed_data[2][0][0] == '#':
+					if logging == 1:
+						add_to_log(name,parsed_data[2][0],parsed_data[2][1])
+					message_read(name,ip,parsed_data[2][0],parsed_data[2][1])
+					repeat_protection(name,parsed_data[2][1],parsed_data[2][0],time.time())
+				else:
+					message_read(name,ip,name,parsed_data[2][1])
             #PONG reponse to PING
-            if data.find('PING') != -1:
-                irc.send('PONG ' + data.split()[1] + '\r\n')
+            elif parsed_data[1] == 'PING':
+                irc.send('PONG ' + parsed_data[2][0] + '\r\n')
             #when /end of MOTD is recognised the bot will join channels
-            elif data.find ( 'End of /MOTD command' ) != -1:
+            elif parsed_data[1] == '376':
                 auth_q(q_username,q_password)
                 join_channel(channel)
-            elif data.find ( 'End of MOTD command' ) != -1:
-                #auth_q(q_username,q_password)
-                join_channel(channel)
             #when a channel is joined bot can greet here
-            elif data.find( 'End of /NAMES list') != -1:
-                data.lstrip(':')
-                lines = data.rstrip('\r\n').split('\r\n')
-                chan = lines[len(lines)-1].split()[3]
-                #send_to_channel(chan,'BOT IS HERE')
+            elif parsed_data[1] == '366':
+				pass
+                #send_to_channel(parsed_data[2][1],'BOT IS HERE')
             #gives voice to user that joins
-            elif data.find('JOIN ' + channel) != -1:
-                name = data.lstrip(':').split('!')[0]
-                ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
+            elif parsed_data[1] == 'JOIN':
+                name = parsed_data[0].split('!')[0]
+                ip = parsed_data[0].split('@')[1]
                 add_user(name,ip)
                 if can_voice(name):
-					give_voice(name,channel)
+					give_voice(name,parsed_data[2][0].rstrip('\r\n'))
             #checks if a user has been given voice, and if that user is muted it will remove it
-            elif data.find('MODE ' + channel + ' +v') != -1:
-                name = data.split(channel + ' +v')[1].lstrip(' ').rstrip('\r\n')
-                ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
-                if can_voice(name):
-					pass
-                else:
-					remove_voice(name,channel)
-            elif data.find('NICK') != -1:
-				print "found nick"
-				oriname = data.lstrip(':').split('!')[0]
-				newname = data.split('NICK :')[1].rstrip('\r\n')
-				update_user(oriname,newname)
-            elif data.find ('PRIVMSG #') != -1:
-                name = data.lstrip(':').split('!')[0]
-                ip = data.lstrip(':').split('!')[1].split()[0].split('@')[1]
-                chan_name = data.lstrip(':').split('PRIVMSG ')[1].split()[0]
-                message = data.lstrip(':').split(chan_name + ' :')[1].rstrip('\r\n').lstrip(' ')
-                if logging == 1:
-                    add_to_log(name,chan_name,message)
-                message_read(name,ip,chan_name,message)
-                repeat_protection(name,message,chan_name,time.time())
+            elif parsed_data[1] == 'MODE':
+                if parsed_data[2][1] == '+v':
+					if can_voice(parsed_data[2][2]):
+						pass
+					else:
+						remove_voice(parsed_data[2][2],parsed_data[2][0])
+            elif parsed_data[1] == 'NICK':
+				oriname = parsed_data[0].split('!')[0]
+				update_user(oriname,parsed_data[2][0])
 i = ircThread()
 i.start()
