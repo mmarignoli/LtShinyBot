@@ -57,6 +57,8 @@ def can_voice(name):
 			return False
 		else:
 			return True
+	else:
+		return True
 	cursor.close()
 	conn.close()
 	
@@ -128,6 +130,47 @@ def update_whinewords():
     cursor.close ()
     conn.close ()
 
+#pulls all the commands off the database
+def update_commands():
+    conn = MySQLdb.connect (host = db_server,
+                       user = db_username,
+                       passwd = db_password,
+                       db = db_name)
+    cursor = conn.cursor ()
+    cursor.execute ("SELECT name FROM commands")
+    numrows = int(cursor.rowcount)
+    commands_temp = ""
+    for i in range(numrows):
+        row = cursor.fetchone()
+        commands_temp += str(row[0]) + ','
+        
+    commands = commands_temp.rstrip(',').split(',')
+    return commands
+    cursor.close
+    conn.close
+    
+#retrieves the command and returns a string
+def run_command(command):
+    conn = MySQLdb.connect (host = db_server,user = db_username,passwd = db_password,db = db_name)
+    cursor = conn.cursor ()
+    cursor.execute ("SELECT text FROM commands WHERE name=%s",command)
+    message = cursor.fetchone()
+    return message[0]
+    cursor.close()
+    conn.close()
+
+#add static command
+def add_static_command(name):
+    conn = MySQLdb.connect (host = db_server,user = db_username,passwd = db_password,db = db_name)
+    cursor = conn.cursor ()
+    try:
+        cursor.execute ("INSERT INTO commands (ID, name, text, static) VALUES (NULL, %s, '', 0)",name)
+        return True
+    except:
+        return False
+    cursor.close()
+    conn.close()
+    
 #updates all the banned words from the database
 def update_banwords():
     conn = MySQLdb.connect (host = db_server,
